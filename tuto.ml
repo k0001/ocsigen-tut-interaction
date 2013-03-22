@@ -22,9 +22,10 @@ let new_user_form_service = Eliom_service.service
   ~path:["registration"]
   ~get_params:Eliom_parameter.unit ()
 
-let create_account_service = Eliom_service.post_coservice
-  ~fallback:main_service
+let account_confirmation_service = Eliom_service.post_coservice
+  ~fallback:new_user_form_service
   ~post_params:Eliom_parameter.(string "name" ** string "password") ()
+
 
 (******************************************************************************)
 (* Users db *)
@@ -73,7 +74,7 @@ Lwt.return
          p [a new_user_form_service [pcdata "Create an account"] ()]])
 
 let account_form =
-  post_form ~service:create_account_service
+  post_form ~service:account_confirmation_service
     (fun (name1, name2) ->
       [fieldset
           [label ~a:[a_for name1] [pcdata "Login: "];
@@ -126,5 +127,27 @@ let _ =
     (fun () () ->
       Lwt.return
         (html (head (title (pcdata "")) [])
-              (body [h1 [pcdata "Create an account"];
-                     account_form])))
+           (body [h1 [pcdata "Create an account"];
+                  account_form]))) ;
+
+  Eliom_registration.Html5.register
+    ~service:account_confirmation_service
+    (fun () (name, pwd) ->
+      let create_account_service =
+        Eliom_registration.Action.register_coservice
+          ~fallback:main_service
+          ~get_params:Eliom_parameter.unit
+          ~timeout:60.
+          (fun () () ->
+            users := (name, pwd) :: !users;
+            Lwt.return ()) in
+      Lwt.return
+        (html (head (title (pcdata "")) [])
+           (body
+              [h1 [pcdata "Confirm account creation for "; pcdata name];
+               p [a ~service:create_account_service [pcdata "Yes"] ();
+                  pcdata " ";
+                  a ~service:main_service [pcdata "No"] ()]])));
+
+
+
