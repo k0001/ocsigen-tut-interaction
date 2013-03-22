@@ -13,7 +13,9 @@ let user_service = Eliom_service.service ~path:["users"]
 let connection_service = Eliom_service.post_coservice'
     ~post_params:Eliom_parameter.(string "name" ** string "password") ()
 
-let disconnection_service = Eliom_service.void_coservice'
+let disconnection_service = Eliom_service.post_coservice'
+    ~post_params:Eliom_parameter.unit ()
+
 
 (******************************************************************************)
 (* Users db *)
@@ -38,11 +40,16 @@ let username = Eliom_reference.eref
 (******************************************************************************)
 (* Forms *)
 
+let disconnection_box () =
+  post_form disconnection_service
+    (fun _ -> [p [string_input ~input_type:`Submit ~value:"Log out" ()]]) ()
+
 let connection_box () =
   lwt u = Eliom_reference.get username in
   Lwt.return
     (match u with
-    | Some s -> p [pcdata "You are connected as "; pcdata s]
+    | Some s -> div [p [pcdata "You are connected as "; pcdata s];
+                     disconnection_box ()]
     | None ->
       post_form ~service:connection_service
         (fun (name1, name2) ->
@@ -54,10 +61,6 @@ let connection_box () =
                string_input ~input_type:`Password ~name:name2 ();
                br ();
                string_input ~input_type:`Submit ~value:"Connect" ()]]) ())
-
-let disconnection_box =
-  post_form disconnection_service
-    (fun _ -> [p [string_input ~input_type:`Submit ~value:"Log out" ()]]) ()
 
 
 (******************************************************************************)
@@ -90,6 +93,8 @@ let _ =
     (fun () (name, password) ->
       if check_pwd name password
       then Eliom_reference.set username (Some name)
-      else Lwt.return ())
+      else Lwt.return ()) ;
 
-
+  Eliom_registration.Action.register
+    ~service:disconnection_service
+    (fun () () -> Eliom_state.discard ~scope:Eliom_common.default_session_scope ())
