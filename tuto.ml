@@ -142,13 +142,13 @@ let _ =
     ~service:account_confirmation_service
     (fun () (name, pwd) ->
       let create_account_service =
-        Eliom_registration.Action.register_coservice
+        Eliom_registration.Redirection.register_coservice
           ~fallback:main_service
           ~get_params:Eliom_parameter.unit
           ~timeout:60.
           (fun () () ->
             users := (name, pwd) :: !users;
-            Lwt.return ()) in
+            Lwt.return main_service) in
       Lwt.return
         (html (head (title (pcdata "")) [])
            (body
