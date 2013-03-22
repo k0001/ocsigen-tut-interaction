@@ -108,15 +108,22 @@ let _ =
                 cf;
                 user_links ()])));
 
-  Eliom_registration.Html5.register
+  Eliom_registration.Any.register
     ~service:user_service
     (fun name () ->
-      lwt cf = connection_box () in
-    Lwt.return
-      (html (head (title (pcdata name)) [])
-         (body [h1 [pcdata name];
-                cf;
-                p [a ~service:main_service [pcdata "Home"] ()]]))) ;
+      if List.exists (fun (n,_) -> n = name) !users
+      then begin
+        lwt cf = connection_box () in
+           Eliom_registration.Html5.send
+             (html (head (title (pcdata name)) [])
+                (body [h1 [pcdata name];
+                       cf;
+                       p [a ~service:main_service [pcdata "Home"] ()]])) end
+      else Eliom_registration.Html5.send
+         ~code:404
+         (html (head (title (pcdata "404")) [])
+            (body [h1 [pcdata "404"];
+                   p [pcdata "That page does not exist"]]))) ;
 
   Eliom_registration.Action.register
     ~service:connection_service
