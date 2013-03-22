@@ -41,10 +41,13 @@ let check_pwd name pwd =
 
 (******************************************************************************)
 (* Session data *)
-
 let username = Eliom_reference.eref
   ~scope:Eliom_common.default_session_scope
   ~persistent:"username" None
+
+(* Request data *)
+let wrong_pwd = Eliom_reference.eref
+  ~scope:Eliom_common.request_scope false
 
 
 (******************************************************************************)
@@ -56,12 +59,14 @@ let disconnection_box () =
 
 let connection_box () =
   lwt u = Eliom_reference.get username in
-Lwt.return
-  (match u with
-  | Some s -> div [p [pcdata "You are connected as "; pcdata s];
-                   disconnection_box ()]
-  | None ->
-    div [post_form ~service:connection_service
+  lwt wp = Eliom_reference.get wrong_pwd in
+  Lwt.return
+    (match u with
+    | Some s -> div [p [pcdata "You are connected as "; pcdata s];
+                     disconnection_box ()]
+    | None ->
+      let l =
+        [post_form ~service:connection_service
             (fun (name1, name2) ->
               [fieldset
                   [label ~a:[a_for name1] [pcdata "Login: "];
@@ -71,7 +76,10 @@ Lwt.return
                    string_input ~input_type:`Password ~name:name2 ();
                    br ();
                    string_input ~input_type:`Submit ~value:"Connect" ()]]) ();
-         p [a new_user_form_service [pcdata "Create an account"] ()]])
+         p [a new_user_form_service [pcdata "Create an account"] ()]] in
+      div (if wp
+           then (p [em [pcdata "Wrong user or password"]])::l
+           else l))
 
 let account_form =
   post_form ~service:account_confirmation_service
@@ -115,7 +123,7 @@ let _ =
     (fun () (name, password) ->
       if check_pwd name password
       then Eliom_reference.set username (Some name)
-      else Lwt.return ()) ;
+      else Eliom_reference.set wrong_pwd true);
 
   Eliom_registration.Action.register
     ~service:disconnection_service
