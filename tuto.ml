@@ -4,18 +4,27 @@ open Eliom_content.Html5.D
 (******************************************************************************)
 (* Services *)
 
-let main_service = Eliom_service.service ~path:[""]
+let main_service = Eliom_service.service
+  ~path:[""]
   ~get_params:Eliom_parameter.unit ()
 
-let user_service = Eliom_service.service ~path:["users"]
+let user_service = Eliom_service.service
+  ~path:["users"]
   ~get_params:Eliom_parameter.(suffix (string "name")) ()
 
 let connection_service = Eliom_service.post_coservice'
-    ~post_params:Eliom_parameter.(string "name" ** string "password") ()
+  ~post_params:Eliom_parameter.(string "name" ** string "password") ()
 
 let disconnection_service = Eliom_service.post_coservice'
-    ~post_params:Eliom_parameter.unit ()
+  ~post_params:Eliom_parameter.unit ()
 
+let new_user_form_service = Eliom_service.service
+  ~path:["registration"]
+  ~get_params:Eliom_parameter.unit ()
+
+let create_account_service = Eliom_service.post_coservice
+  ~fallback:main_service
+  ~post_params:Eliom_parameter.(string "name" ** string "password") ()
 
 (******************************************************************************)
 (* Users db *)
@@ -46,22 +55,34 @@ let disconnection_box () =
 
 let connection_box () =
   lwt u = Eliom_reference.get username in
-  Lwt.return
-    (match u with
-    | Some s -> div [p [pcdata "You are connected as "; pcdata s];
-                     disconnection_box ()]
-    | None ->
-      post_form ~service:connection_service
-        (fun (name1, name2) ->
-          [fieldset
-              [label ~a:[a_for name1] [pcdata "Login: "];
-               string_input ~input_type:`Text ~name:name1 ();
-               br ();
-               label ~a:[a_for name2] [pcdata "Password: "];
-               string_input ~input_type:`Password ~name:name2 ();
-               br ();
-               string_input ~input_type:`Submit ~value:"Connect" ()]]) ())
+Lwt.return
+  (match u with
+  | Some s -> div [p [pcdata "You are connected as "; pcdata s];
+                   disconnection_box ()]
+  | None ->
+    div [post_form ~service:connection_service
+            (fun (name1, name2) ->
+              [fieldset
+                  [label ~a:[a_for name1] [pcdata "Login: "];
+                   string_input ~input_type:`Text ~name:name1 ();
+                   br ();
+                   label ~a:[a_for name2] [pcdata "Password: "];
+                   string_input ~input_type:`Password ~name:name2 ();
+                   br ();
+                   string_input ~input_type:`Submit ~value:"Connect" ()]]) ();
+         p [a new_user_form_service [pcdata "Create an account"] ()]])
 
+let account_form =
+  post_form ~service:create_account_service
+    (fun (name1, name2) ->
+      [fieldset
+          [label ~a:[a_for name1] [pcdata "Login: "];
+           string_input ~input_type:`Text ~name:name1 ();
+           br ();
+           label ~a:[a_for name2] [pcdata "Password: "];
+           string_input ~input_type:`Password ~name:name2 ();
+           br ();
+           string_input ~input_type:`Submit ~value:"Connect" ()]]) ()
 
 (******************************************************************************)
 (* Eliom registration *)
@@ -97,4 +118,13 @@ let _ =
 
   Eliom_registration.Action.register
     ~service:disconnection_service
-    (fun () () -> Eliom_state.discard ~scope:Eliom_common.default_session_scope ())
+    (fun () () -> Eliom_state.discard
+      ~scope:Eliom_common.default_session_scope ()) ;
+
+  Eliom_registration.Html5.register
+    ~service:new_user_form_service
+    (fun () () ->
+      Lwt.return
+        (html (head (title (pcdata "")) [])
+              (body [h1 [pcdata "Create an account"];
+                     account_form])))
