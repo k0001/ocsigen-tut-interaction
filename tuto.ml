@@ -62,17 +62,10 @@ let _ =
 let check_pwd name pwd =
   try List.assoc name !users = pwd with Not_found -> false
 
-let _ = Eliom_registration.Html5.register
+let _ = Eliom_registration.Action.register
   ~service:connection_service
   (fun () (name, password) ->
-    lwt message =
       if check_pwd name password
-      then Lwt.bind
-        (Eliom_reference.set username (Some name))
-        (fun _ -> Lwt.return ("Hello "^name))
-      else Lwt.return "Wrong name or password" in
-    Lwt.return
-      (html (head (title (pcdata "")) [])
-         (body [h1 [pcdata message];
-                user_links ()])))
+      then Eliom_reference.set username (Some name)
+      else Lwt.return ()) ;
 
