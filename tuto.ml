@@ -148,7 +148,11 @@ let _ =
           ~timeout:60.
           (fun () () ->
             users := (name, pwd) :: !users;
-            Lwt.return main_service) in
+            Lwt.bind
+              (Eliom_reference.set username (Some name))
+              (fun _ ->
+                let s = Eliom_service.preapply ~service:user_service name in
+                Lwt.return s)) in
       Lwt.return
         (html (head (title (pcdata "")) [])
            (body
